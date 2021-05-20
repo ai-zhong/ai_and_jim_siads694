@@ -204,7 +204,8 @@ def load_df_and_features(path, feature_names=None, train=True, lemma=True):
 
     if feature_names is None:
         feature_names = ['aoa', 'avg_word_len', 'concreteness',
-                         'dale_chall', 'syllable_per_w', 'doc_length']
+                         'dale_chall', 'syllable_per_w', 'doc_length', 
+                         'conc_mean', 'conc_subtlex', 'aoa_freqpm', 'word_cnt']
 
     features = []
     if train:
@@ -225,6 +226,16 @@ def load_df_and_features(path, feature_names=None, train=True, lemma=True):
                 elif f=='doc_length':
                     df['len'] = df['original_text'].apply(len)
                     continue
+                    
+                elif f=='conc_mean':
+                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_conc_mean_score2.csv'), index_col=0)
+                elif f=='conc_subtlex':
+                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_conc_subtlex_score2.csv'), index_col=0)
+                elif f=='aoa_freqpm':
+                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_aoa_freqpm_scores2.csv'), index_col=0)
+                elif f=='word_cnt':
+                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_word_count2.csv'), index_col=0)
+
                 else:
                     print(f'{f} is not one of calculated features')
                     return None
