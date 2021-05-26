@@ -25,7 +25,7 @@ def load_data(filename='WikiLarge_Train.csv', read_partial=False, s=100000):
     return df
 
 
-def tokenize(df, lemmatize=False):
+def tokenize(df, lemmatize=True):
     """
     some preprocessing before training word2vec
     note we do NOT lower case word here
@@ -47,6 +47,7 @@ def tokenize(df, lemmatize=False):
             re_tokenized.append([token.lemma_ for token in text
                                  if str(token).lower() not in stops and len(str(token)) > 1
                                  and not str(token.lemma_).startswith('-')])
+        # save for later import
         pickle.dump(re_tokenized, open('re_tokenized_lemma.pkl', 'wb'))
 
     return re_tokenized
@@ -165,16 +166,17 @@ def get_avg_word_length(list_of_tokens):
 
 def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test='Train'):
     """
-    generate numerical scores.
+    Calculate 11 numerical scores and save each as a csv file.
     df has a column named 're_tokened'
     """
     dale, aoa_df, concrete_df = load_external_resources()
 
     aoa_dict1 = aoa_df.set_index('Word').to_dict()['AoA_Kup_lem']
-    aoa_dict2 = aoa_df.set_index('Word').to_dict()['Freq_pm']
+    
     concrete_dict1 = concrete_df.set_index('Word').to_dict()['Percent_known']
     concrete_dict2 = concrete_df.set_index('Word').to_dict()['Conc.M']
     concrete_dict3 = concrete_df.set_index('Word').to_dict()['SUBTLEX']
+    concrete_dict4 = concrete_df.set_index('Word').to_dict()['Total']
 
     df['sentence_cnt'] = df.original_text.apply(lambda x: len(sent_tokenize(x)))
 
@@ -195,12 +197,7 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
         # 9 scores
         dale_chall_scores = []
         asw_scores = []
-        Percent_known = []
         avg_word_lens = []
-        aoa_scores = []
-        aoa_freqpms = []
-        conc_mean_scores = []
-        subtlex_scores = []
         cnt_verbs_all = []
 
         for i in tqdm(range(len(df))):
@@ -209,14 +206,7 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
             score1, score2 = calc_dale_score(item['re_tokened'], item['sentence_cnt'], dale)
             dale_chall_scores.append(score1)
             asw_scores.append(score2)
-
-            Percent_known.append(get_score_from_dict(item['re_tokened'], concrete_dict1))
-            conc_mean_scores.append(get_score_from_dict(item['re_tokened'], concrete_dict2))
-            subtlex_scores.append(get_score_from_dict(item['re_tokened'], concrete_dict3))
-
             avg_word_lens.append(get_avg_word_length(item['re_tokened']))
-            aoa_scores.append(get_score_from_dict(item['re_tokened'], aoa_dict1))
-            aoa_freqpms.append(get_score_from_dict(item['re_tokened'], aoa_dict2))
 
             # count how many verbs appeared in this doc without removing stopwords
             tags = pos_tag(word_tokenize(df['original_text'].iloc[i]))
@@ -226,12 +216,12 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
 
         df['dale_chall_score'] = dale_chall_scores
         df['syllable_per_word'] = asw_scores
-        df['concrete_score'] = Percent_known
-        df['conc_mean'] = conc_mean_scores
-        df['subtlex'] = subtlex_scores
+        df['concrete_score'] = df['re_tokened'].apply(lambda x: get_score_from_dict(x, concrete_dict1))
+        df['conc_mean'] = df['re_tokened'].apply(lambda x: get_score_from_dict(x, concrete_dict2))
+        df['subtlex'] = df['re_tokened'].apply(lambda x: get_score_from_dict(x, concrete_dict3))
+        df['conc_total'] = df['re_tokened'].apply(lambda x: get_score_from_dict(x, concrete_dict4))
         df['average_word_len'] = avg_word_lens
-        df['aoa'] = aoa_scores
-        df['aoa_freqpm'] = aoa_freqpms
+        df['aoa'] = df['re_tokened'].apply(lambda x: get_score_from_dict(x, aoa_dict1))
         df['verb2'] = cnt_verbs_all
 
         df['word_cnt'] = df['re_tokened'].apply(len)
@@ -243,78 +233,50 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
         df[['concrete_score']].to_csv(f'WikiLarge_{train_or_test}_concrete_score2.csv')
         df[['conc_mean']].to_csv(f'WikiLarge_{train_or_test}_conc_mean_score2.csv')
         df[['subtlex']].to_csv(f'WikiLarge_{train_or_test}_conc_subtlex_score2.csv')
+        df[['conc_total']].to_csv(f'WikiLarge_{train_or_test}_conc_total_scores2.csv')
 
         df[['average_word_len']].to_csv(f'WikiLarge_{train_or_test}_avg_word_len2.csv')
         df[['aoa']].to_csv(f'WikiLarge_{train_or_test}_aoa2.csv')
-        df[['aoa_freqpm']].to_csv(f'WikiLarge_{train_or_test}_aoa_freqpm_scores2.csv')
         df[['verb2']].to_csv(f'WikiLarge_{train_or_test}_verb_cnts2.csv')
 
         df[['word_cnt']].to_csv(f'WikiLarge_{train_or_test}_word_count2.csv')
 
 
 
-def load_df_and_features(path, feature_names=None, train=True, lemma=True):
+def load_df_and_features(path, train=True):
     """
     Load the calculated features along with the dataset
     :param path: file path to where the files are
-    :param feature_names: choose from 'aoa', 'avg_word_len', 'concreteness',
-    'dale_chall', 'syllable_per_w'
     :param train: whether it's training dataset. If =False, load for testing dataset.
     :return: return df with loaded features
     """
     import os
-
-    if feature_names is None:
-        feature_names = ['aoa', 'avg_word_len', 'concreteness',
-                         'dale_chall', 'syllable_per_w', 'doc_length', 
-                         'conc_mean', 'conc_subtlex', 'aoa_freqpm', 'word_cnt',
-                         'verb_cnt']
-
-    features = []
+    import glob
+   
     if train:
+        feature_files = glob.glob("WikiLarge_Train_*2.csv")
+        features = []
+        for f in feature_files:
+            temp = pd.read_csv(f, index_col=0)
+            features.append(temp)
+        
+        feature_df = pd.concat(features, axis=1)
+        # fill na with mean
+        feature_df = feature_df.fillna(feature_df.mean())
+
         df = load_data(filename='WikiLarge_Train.csv', read_partial=False)
+        feature_df = pd.concat([df, feature_df], axis=1)
+        
+        chosen_features = ['aoa', 'concrete_score','verb2', 'conc_unknown', 'aoa_perc_known_lem',
+        'conc_total', 'syllable_per_word', 'conc_mean_score','dale_chall_score', 'conc_subtlex_score']
+        chosen_cols = ['original_text', 'label']+chosen_features
 
-        for f in feature_names:
-            # with lemmatization, document result is saved with 2 suffix
-            if lemma:
-                if f == 'aoa':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_aoa2.csv'), index_col=0)
-                elif f=='avg_word_len':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_avg_word_len2.csv'), index_col=0)
-                elif f=='concreteness':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_concrete_score2.csv'), index_col=0)
-                elif f=='dale_chall':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_dale_chall_score2.csv'), index_col=0)
-                elif f=='syllable_per_w':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_syllable_per_w2.csv'), index_col=0)
-                
-                # this is not loaded but calculated.
-                elif f=='doc_length':
-                    df['len'] = df['original_text'].apply(len)
-                    continue
-                    
-                elif f=='conc_mean':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_conc_mean_score2.csv'), index_col=0)
-                elif f=='conc_subtlex':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_conc_subtlex_score2.csv'), index_col=0)
-                elif f=='aoa_freqpm':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_aoa_freqpm_scores2.csv'), index_col=0)
-                elif f=='word_cnt':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_word_count2.csv'), index_col=0)
-                elif f=='verb_cnt':
-                    feat = pd.read_csv(os.path.join(path, 'WikiLarge_Train_verb_cnts2.csv'), index_col=0)
-                else:
-                    print(f'{f} is not one of calculated features')
-                features.append(feat)
-
-        features = pd.concat(features, axis=1)
-        feature_df = pd.concat([df, features], axis=1)
+        feature_df = feature_df[chosen_cols]
 
         return feature_df
 
 
 if __name__ == '__main__':
-
     test = load_df_and_features(path='')
     print(test.head())
     print(test.columns)
