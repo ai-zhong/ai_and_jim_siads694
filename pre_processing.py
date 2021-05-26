@@ -218,7 +218,7 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
             aoa_scores.append(get_score_from_dict(item['re_tokened'], aoa_dict1))
             aoa_freqpms.append(get_score_from_dict(item['re_tokened'], aoa_dict2))
 
-            # count how many verbs appeared in this doc
+            # count how many verbs appeared in this doc without removing stopwords
             tags = pos_tag(word_tokenize(df['original_text'].iloc[i]))
             cnt_verbs = sum([x[-1][0]=='V' for x in tags])
             cnt_verbs_all.append(cnt_verbs)
