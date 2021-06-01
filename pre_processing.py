@@ -7,7 +7,7 @@ from tqdm import tqdm
 from nltk import pos_tag
 
 
-def load_data(filename='WikiLarge_Train.csv', read_partial=False, s=100000):
+def load_data(filename='sample_data/WikiLarge_Train.csv', read_partial=False, s=100000):
     """
     if read_partial, then only part of the data is read
     s is the length of sample you want to take if read_partial==True
@@ -37,7 +37,7 @@ def tokenize(df, lemmatize=True):
         for text in tqdm(df.original_text):
             re_tokenized.append([x for x in re.findall(r'(\w+)', text)
                                  if x.lower() not in stops and len(x) > 1])
-        pickle.dump(re_tokenized, open('re_tokenized_nolemma.pkl', 'wb'))
+        pickle.dump(re_tokenized, open('sample_data/re_tokenized_nolemma.pkl', 'wb'))
 
     if lemmatize:
         import spacy
@@ -48,7 +48,7 @@ def tokenize(df, lemmatize=True):
                                  if str(token).lower() not in stops and len(str(token)) > 1
                                  and not str(token.lemma_).startswith('-')])
         # save for later import
-        pickle.dump(re_tokenized, open('re_tokenized_lemma.pkl', 'wb'))
+        pickle.dump(re_tokenized, open('sample_data/re_tokenized_lemma.pkl', 'wb'))
 
     return re_tokenized
 
@@ -61,19 +61,19 @@ def load_external_resources():
     3. Concreteness_ratings_Brysbaert_et_al_BRM.txt
     """
     # file 1
-    with open('dale_chall.txt', 'r') as f:
+    with open('sample_data/dale_chall.txt', 'r') as f:
         dale = f.readlines()
         f.close()
 
     dale = [x.strip() for x in dale]
 
     # file 2
-    aoa_df = pd.read_csv('AoA_51715_words.csv', encoding='iso-8859-1')
+    aoa_df = pd.read_csv('sample_data/AoA_51715_words.csv', encoding='iso-8859-1')
     # aoa = aoa[['Word', 'AoA_Kup_lem']]
     # aoa_dict = aoa.set_index('Word').to_dict()['AoA_Kup_lem']
 
     # file 3
-    with open('Concreteness_ratings_Brysbaert_et_al_BRM.txt', 'r') as f:
+    with open('sample_data/Concreteness_ratings_Brysbaert_et_al_BRM.txt', 'r') as f:
         concrete = f.readlines()
         f.close()
 
@@ -228,18 +228,18 @@ def calculate_scores(df, lemma=False, token_file='re_tokenized_', train_or_test=
 
         # ============================================
         # save results as csvs for later reloading
-        df[['dale_chall_score']].to_csv(f'WikiLarge_{train_or_test}_dale_chall_score2.csv')
-        df[['syllable_per_word']].to_csv(f'WikiLarge_{train_or_test}_syllable_per_w2.csv')
-        df[['concrete_score']].to_csv(f'WikiLarge_{train_or_test}_concrete_score2.csv')
-        df[['conc_mean']].to_csv(f'WikiLarge_{train_or_test}_conc_mean_score2.csv')
-        df[['subtlex']].to_csv(f'WikiLarge_{train_or_test}_conc_subtlex_score2.csv')
-        df[['conc_total']].to_csv(f'WikiLarge_{train_or_test}_conc_total_scores2.csv')
+        df[['dale_chall_score']].to_csv(f'sample_data/WikiLarge_{train_or_test}_dale_chall_score2.csv')
+        df[['syllable_per_word']].to_csv(f'sample_data/WikiLarge_{train_or_test}_syllable_per_w2.csv')
+        df[['concrete_score']].to_csv(f'sample_data/WikiLarge_{train_or_test}_concrete_score2.csv')
+        df[['conc_mean']].to_csv(f'sample_data/WikiLarge_{train_or_test}_conc_mean_score2.csv')
+        df[['subtlex']].to_csv(f'sample_data/WikiLarge_{train_or_test}_conc_subtlex_score2.csv')
+        df[['conc_total']].to_csv(f'sample_data/WikiLarge_{train_or_test}_conc_total_scores2.csv')
 
-        df[['average_word_len']].to_csv(f'WikiLarge_{train_or_test}_avg_word_len2.csv')
-        df[['aoa']].to_csv(f'WikiLarge_{train_or_test}_aoa2.csv')
-        df[['verb2']].to_csv(f'WikiLarge_{train_or_test}_verb_cnts2.csv')
+        df[['average_word_len']].to_csv(f'sample_data/WikiLarge_{train_or_test}_avg_word_len2.csv')
+        df[['aoa']].to_csv(f'sample_data/WikiLarge_{train_or_test}_aoa2.csv')
+        df[['verb2']].to_csv(f'sample_data/WikiLarge_{train_or_test}_verb_cnts2.csv')
 
-        df[['word_cnt']].to_csv(f'WikiLarge_{train_or_test}_word_count2.csv')
+        df[['word_cnt']].to_csv(f'sample_data/WikiLarge_{train_or_test}_word_count2.csv')
 
 
 
@@ -254,7 +254,7 @@ def load_df_and_features(path, train=True):
     import glob
    
     if train:
-        feature_files = glob.glob("WikiLarge_Train_*2.csv")
+        feature_files = glob.glob("sample_data/WikiLarge_Train_*2.csv")
         features = []
         for f in feature_files:
             temp = pd.read_csv(f, index_col=0)
